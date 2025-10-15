@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morde Webhook Tool</title>
+<style>
+:root{
+  --bg:#0a0a0b;
+  --panel:#141518;
+  --text:#e0e0e0;
+  --muted:#999;
+  --accent:#7c3aed;
+  --radius:12px;
+}
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height:100vh;
+  padding:20px;
+}
+header{
+  width:100%;
+  max-width:800px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  font-weight:bold;
+  background:linear-gradient(90deg,var(--accent),#2dd4bf);
+  -webkit-background-clip:text;
+  color:transparent;
+  margin-bottom:20px;
+}
+.panel{
+  background:var(--panel);
+  padding:20px;
+  border-radius:var(--radius);
+  width:100%;
+  max-width:800px;
+  margin-bottom:20px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.6);
+}
+input, textarea{
+  width:100%;
+  padding:10px;
+  border-radius:var(--radius);
+  border:none;
+  background:#222;
+  color:var(--text);
+  margin-top:10px;
+}
+button{
+  padding:10px 16px;
+  border:none;
+  border-radius:var(--radius);
+  margin-top:10px;
+  background:var(--accent);
+  color:#fff;
+  cursor:pointer;
+  font-weight:bold;
+}
+.avatar{
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  margin-top:10px;
+  border:2px solid var(--accent);
+  object-fit:cover;
+}
+.status{
+  margin-top:10px;
+  font-size:13px;
+  color:var(--muted);
+  white-space:pre-wrap;
+}
+</style>
+</head>
+<body>
+
+<header>𝐌ø𝐫𝐝𝐞 Webhook Tool</header>
+
+<div class="panel">
+  <label>Webhook URL</label>
+  <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/...">
+
+  <label>Message</label>
+  <textarea id="message" placeholder="Type your message here"></textarea>
+
+  <button id="sendBtn">Send Message</button>
+
+  <div class="status" id="status">Status: Waiting</div>
+
+  <img id="avatar" class="avatar" src="" alt="Webhook Avatar" style="display:none">
+  <button id="fetchAvatarBtn">Fetch Webhook Avatar</button>
+</div>
+
+<script>
+const webhookInput = document.getElementById('webhookUrl');
+const messageInput = document.getElementById('message');
+const sendBtn = document.getElementById('sendBtn');
+const status = document.getElementById('status');
+const avatarImg = document.getElementById('avatar');
+const fetchAvatarBtn = document.getElementById('fetchAvatarBtn');
+
+function stripEmojis(text){
+  return text.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F1E6}-\u{1F1FF}]|\uFE0F/gu,'');
+}
+
+// Send message
+sendBtn.addEventListener('click', async ()=>{
+  const url = webhookInput.value.trim();
+  let msg = stripEmojis(messageInput.value.trim());
+  if(!url || !msg){ status.textContent = 'Status: Please fill in both fields'; return; }
+  status.textContent = 'Status: Sending...';
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({content: msg})
+    });
+    if(!res.ok) throw new Error(res.statusText);
+    status.textContent = 'Status: Message sent!';
+  }catch(e){
+    status.textContent = 'Status: Error - ' + e.message;
+  }
+});
+
+// Fetch webhook avatar
+fetchAvatarBtn.addEventListener('click', async ()=>{
+  const url = webhookInput.value.trim();
+  if(!url){ status.textContent='Status: Enter webhook URL'; return; }
+  try{
+    // Discord API returns webhook JSON if you GET it
+    const apiUrl = url.replace('https://discord.com/api/webhooks/','https://discord.com/api/webhooks/');
+    const res = await fetch(apiUrl);
+    if(!res.ok) throw new Error('Invalid webhook');
+    const data = await res.json();
+    if(data.avatar){
+      const ext = data.avatar.startsWith('a_') ? 'gif' : 'png';
+      avatarImg.src = `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.${ext}?size=128`;
+      avatarImg.style.display='block';
+      status.textContent='Status: Avatar fetched';
+    } else {
+      status.textContent='Status: Webhook has no avatar';
+      avatarImg.style.display='none';
+    }
+  }catch(e){
+    status.textContent='Status: Error fetching avatar - ' + e.message;
+    avatarImg.style.display='none';
+  }
+});
+</script>
+</body>
+</html>
